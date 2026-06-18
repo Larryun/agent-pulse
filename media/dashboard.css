@@ -106,10 +106,32 @@ body {
 }
 
 .session-meta {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 4px;
   text-align: right;
   color: var(--vscode-descriptionForeground);
   font-size: 0.85em;
   white-space: nowrap;
+}
+
+.session-open {
+  font: inherit;
+  cursor: pointer;
+  border: none;
+  border-radius: 3px;
+  padding: 2px 8px;
+  background: var(--vscode-button-secondaryBackground, var(--vscode-button-background));
+  color: var(--vscode-button-secondaryForeground, var(--vscode-button-foreground));
+  /* Reveal on row hover to keep the list clean. */
+  opacity: 0;
+}
+.session-header:hover .session-open {
+  opacity: 1;
+}
+.session-open:hover {
+  background: var(--vscode-button-hoverBackground, var(--vscode-button-background));
 }
 
 .history {

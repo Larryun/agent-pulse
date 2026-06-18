@@ -11,6 +11,7 @@ Agent Pulse currently supports **Claude Code**, with a design that's ready to gr
 - **Aggregated view** — all your sessions in one panel, with a live summary header (sessions · active · total tool calls).
 - **Session names** — shows the AI-generated, conversation-based session title, with the session hash and working-directory path on a smaller line.
 - **Worklog** — instead of raw tool names, each action is summarized (e.g. *"Edited extension.ts"*, *"Ran: npm run compile"*, *"Task: design architecture"*). Click a session to expand its full chronological worklog.
+- **Open in terminal** — hover a session and click **⎘ Open** to resume it in a terminal at its working directory (runs `claude --resume <id>` by default; configurable).
 - **Live & zero-setup** — reads the agent's own transcript files directly. No hooks, no config changes, nothing to install into the agent.
 - **Remote SSH friendly** — reads transcripts on the same host where the agent runs.
 
@@ -58,6 +59,7 @@ A session is "discovered" the moment a transcript line carrying its `sessionId` 
 | `agentPulse.projectsDirectory` | `~/.claude/projects` | Where transcripts live |
 | `agentPulse.idleThresholdSeconds` | `60` | Inactivity before a session shows as idle |
 | `agentPulse.historyLimit` | `100` | Worklog entries kept in memory per session |
+| `agentPulse.resumeCommand` | `claude --resume ${sessionId}` | Command run when opening a session in a terminal (`${sessionId}` is substituted; empty = just open a terminal in the directory) |
 
 ## Privacy
 
@@ -76,7 +78,6 @@ npx @vscode/vsce package
 
 ## Roadmap
 
-- **Open in terminal** — click a session to resume it in a terminal (e.g. `claude --resume <id>`) at its working directory.
 - **Multi-agent support** — pluggable transcript adapters (Kiro at `~/.kiro/sessions/cli/*.jsonl`, and others).
 - Full editor-tab view with a richer timeline.
 - Token-usage metrics per session.

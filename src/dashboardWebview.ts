@@ -26,6 +26,8 @@ export class DashboardWebviewProvider implements vscode.WebviewViewProvider {
     webviewView.webview.onDidReceiveMessage((msg) => {
       if (msg?.type === "ready" && this.lastSnapshot) {
         this.post(this.lastSnapshot);
+      } else if (msg?.type === "openSession") {
+        this.openSessionInTerminal(msg.sessionId, msg.cwd);
       }
     });
 
@@ -46,6 +48,35 @@ export class DashboardWebviewProvider implements vscode.WebviewViewProvider {
 
   private post(snapshot: DashboardSnapshot): void {
     this.view?.webview.postMessage({ type: "snapshot", snapshot });
+  }
+
+  /**
+   * Open a new terminal at the session's working directory and run the
+   * configured resume command (default: `claude --resume <id>`). The command
+   * template is user-configurable; `${sessionId}` is substituted.
+   */
+  private openSessionInTerminal(
+    sessionId: unknown,
+    cwd: unknown
+  ): void {
+    if (typeof sessionId !== "string" || !sessionId) {
+      return;
+    }
+    const config = vscode.workspace.getConfiguration("agentPulse");
+    const template = config.get<string>(
+      "resumeCommand",
+      "claude --resume ${sessionId}"
+    );
+    const command = template.replace(/\$\{sessionId\}/g, sessionId);
+
+    const terminal = vscode.window.createTerminal({
+      name: `Claude ${sessionId.slice(0, 8)}`,
+      cwd: typeof cwd === "string" && cwd ? cwd : undefined,
+    });
+    terminal.show();
+    if (command.trim()) {
+      terminal.sendText(command, true);
+    }
   }
 
   private getHtml(webview: vscode.Webview): string {

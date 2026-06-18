@@ -93,6 +93,11 @@
           "type": "number",
           "default": 100,
           "description": "Maximum number of worklog entries kept per session for the UI."
+        },
+        "agentPulse.resumeCommand": {
+          "type": "string",
+          "default": "claude --resume ${sessionId}",
+          "description": "Command run in the terminal when opening a session. Use ${sessionId} as a placeholder. Leave empty to just open a terminal in the session's directory."
         }
       }
     }

@@ -119,16 +119,30 @@
 
     const meta = document.createElement("div");
     meta.className = "session-meta";
-    meta.innerHTML = `${session.toolCalls} tools<br />${fmtDuration(
+    const stats = document.createElement("div");
+    stats.className = "session-stats";
+    stats.innerHTML = `${session.toolCalls} tools<br />${fmtDuration(
       session.startedAt,
       nowSeconds
     )}`;
+    meta.appendChild(stats);
+
+    // Open-in-terminal button: resumes the session in a terminal at its cwd.
+    const openBtn = document.createElement("button");
+    openBtn.className = "session-open";
+    openBtn.title = "Open this session in a terminal";
+    openBtn.textContent = "⎘ Open";
+    openBtn.addEventListener("click", (ev) => {
+      ev.stopPropagation(); // don't toggle expand
+      vscode.postMessage({
+        type: "openSession",
+        sessionId: session.id,
+        cwd: session.cwd,
+      });
+    });
+    meta.appendChild(openBtn);
     header.appendChild(meta);
 
-    // TODO: add a click affordance to open this session in a terminal
-    // (e.g. `claude --resume <id>` in the session's cwd). Needs a webview
-    // -> extension message ("openSession") handled in dashboardWebview.ts,
-    // which spawns a vscode.Terminal at session.cwd and runs the resume cmd.
     header.addEventListener("click", () => {
       if (expanded.has(session.id)) {
         expanded.delete(session.id);
