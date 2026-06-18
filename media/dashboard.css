@@ -1,0 +1,116 @@
+:root {
+  --gap: 8px;
+}
+
+body {
+  font-family: var(--vscode-font-family);
+  font-size: var(--vscode-font-size);
+  color: var(--vscode-foreground);
+  padding: 0;
+  margin: 0;
+}
+
+.summary {
+  position: sticky;
+  top: 0;
+  background: var(--vscode-sideBar-background);
+  padding: 8px 12px;
+  border-bottom: 1px solid var(--vscode-panel-border);
+  font-weight: 600;
+  z-index: 1;
+}
+
+.sessions {
+  display: flex;
+  flex-direction: column;
+}
+
+.session {
+  border-bottom: 1px solid var(--vscode-panel-border);
+}
+
+.session-header {
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  align-items: center;
+  gap: var(--gap);
+  padding: 8px 12px;
+  cursor: pointer;
+}
+
+.session-header:hover {
+  background: var(--vscode-list-hoverBackground);
+}
+
+.badge {
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  flex: none;
+}
+.badge.active { background: var(--vscode-charts-green, #89d185); }
+.badge.idle { background: var(--vscode-charts-yellow, #cca700); }
+.badge.completed { background: var(--vscode-descriptionForeground, #888); }
+
+.session-title {
+  overflow: hidden;
+}
+.session-name {
+  font-weight: 600;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.session-activity {
+  color: var(--vscode-descriptionForeground);
+  font-size: 0.9em;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.session-meta {
+  text-align: right;
+  color: var(--vscode-descriptionForeground);
+  font-size: 0.85em;
+  white-space: nowrap;
+}
+
+.history {
+  display: none;
+  padding: 4px 12px 10px 30px;
+  max-height: 220px;
+  overflow-y: auto;
+}
+.session.expanded .history {
+  display: block;
+}
+
+.history-entry {
+  display: grid;
+  grid-template-columns: 64px auto 1fr;
+  gap: var(--gap);
+  font-size: 0.85em;
+  padding: 2px 0;
+  color: var(--vscode-foreground);
+}
+.history-time { color: var(--vscode-descriptionForeground); }
+.history-event { font-weight: 600; }
+.history-detail {
+  color: var(--vscode-descriptionForeground);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.empty {
+  display: none;
+  padding: 16px 12px;
+  color: var(--vscode-descriptionForeground);
+}
+.empty.show { display: block; }
+.empty code {
+  background: var(--vscode-textCodeBlock-background);
+  padding: 1px 4px;
+  border-radius: 3px;
+}
