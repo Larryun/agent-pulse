@@ -15,11 +15,16 @@
   function fmtTime(tsSeconds) {
     if (!tsSeconds) return "";
     const d = new Date(tsSeconds * 1000);
-    return d.toLocaleTimeString([], {
+    const date = d.toLocaleDateString([], {
+      month: "short",
+      day: "numeric",
+    });
+    const time = d.toLocaleTimeString([], {
       hour: "2-digit",
       minute: "2-digit",
       second: "2-digit",
     });
+    return `${date} ${time}`;
   }
 
   function fmtDuration(startSeconds, endSeconds) {
@@ -34,24 +39,12 @@
   }
 
   function shortId(id) {
-    return id.length > 8 ? id.slice(0, 8) : id;
+    return id && id.length > 8 ? id.slice(0, 8) : id || "";
   }
 
   function currentActivity(session) {
-    if (session.status === "completed") return "session ended";
-    if (session.activeSubagents > 0) {
-      return `${session.activeSubagents} subagent${
-        session.activeSubagents > 1 ? "s" : ""
-      } running`;
-    }
-    if (session.lastTool) return `last: ${session.lastTool}`;
+    if (session.lastSummary) return session.lastSummary;
     return session.status === "active" ? "working…" : "idle";
-  }
-
-  function cwdName(cwd) {
-    if (!cwd) return "unknown";
-    const parts = cwd.replace(/\/+$/, "").split("/");
-    return parts[parts.length - 1] || cwd;
   }
 
   function render(snapshot) {
@@ -87,24 +80,48 @@
 
     const title = document.createElement("div");
     title.className = "session-title";
+
+    // Session name = the generated, conversation-based title.
     const name = document.createElement("div");
     name.className = "session-name";
-    name.textContent = `${cwdName(session.cwd)} (${shortId(session.id)})`;
-    name.title = `${session.cwd || "unknown"}\n${session.id}`;
+    name.textContent = session.title || session.cwd || "Claude session";
+    name.title = `${session.title || ""}\n${session.cwd || ""}`.trim();
+
+    // Smaller, dimmer line: hash + path (and git branch if present).
+    const sub = document.createElement("div");
+    sub.className = "session-sub";
+    const hash = document.createElement("span");
+    hash.className = "session-hash";
+    hash.textContent = shortId(session.id);
+    hash.title = session.id;
+    const pathEl = document.createElement("span");
+    pathEl.className = "session-path";
+    pathEl.textContent = session.cwd || "";
+    pathEl.title = session.cwd || "";
+    sub.appendChild(hash);
+    sub.appendChild(pathEl);
+    if (session.gitBranch && session.gitBranch !== "HEAD") {
+      const br = document.createElement("span");
+      br.className = "session-branch";
+      br.textContent = session.gitBranch;
+      sub.appendChild(br);
+    }
+
+    // Current action summary.
     const activity = document.createElement("div");
     activity.className = "session-activity";
     activity.textContent = currentActivity(session);
+
     title.appendChild(name);
+    title.appendChild(sub);
     title.appendChild(activity);
     header.appendChild(title);
 
     const meta = document.createElement("div");
     meta.className = "session-meta";
-    const end =
-      session.status === "completed" ? session.lastActivity : nowSeconds;
     meta.innerHTML = `${session.toolCalls} tools<br />${fmtDuration(
       session.startedAt,
-      end
+      nowSeconds
     )}`;
     header.appendChild(meta);
 
@@ -144,18 +161,20 @@
       time.className = "history-time";
       time.textContent = fmtTime(entry.ts);
 
-      const ev = document.createElement("span");
-      ev.className = "history-event";
-      ev.textContent = entry.tool || entry.event;
-
-      const detail = document.createElement("span");
-      detail.className = "history-detail";
-      detail.textContent = entry.detail || (entry.tool ? entry.event : "");
-      detail.title = detail.textContent;
+      const text = document.createElement("span");
+      text.className = "history-summary";
+      text.textContent = entry.summary;
+      text.title = entry.summary;
+      if (entry.subagent) {
+        const tag = document.createElement("span");
+        tag.className = "history-tag";
+        tag.textContent = "subagent";
+        text.appendChild(document.createTextNode(" "));
+        text.appendChild(tag);
+      }
 
       row.appendChild(time);
-      row.appendChild(ev);
-      row.appendChild(detail);
+      row.appendChild(text);
       box.appendChild(row);
     }
     return box;

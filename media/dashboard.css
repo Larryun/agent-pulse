@@ -32,7 +32,7 @@ body {
 .session-header {
   display: grid;
   grid-template-columns: auto 1fr auto;
-  align-items: center;
+  align-items: start;
   gap: var(--gap);
   padding: 8px 12px;
   cursor: pointer;
@@ -47,26 +47,62 @@ body {
   height: 9px;
   border-radius: 50%;
   flex: none;
+  margin-top: 4px;
 }
 .badge.active { background: var(--vscode-charts-green, #89d185); }
 .badge.idle { background: var(--vscode-charts-yellow, #cca700); }
-.badge.completed { background: var(--vscode-descriptionForeground, #888); }
 
 .session-title {
   overflow: hidden;
 }
+
+/* The generated session name — the prominent line. */
 .session-name {
   font-weight: 600;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
 }
-.session-activity {
+
+/* Smaller, dimmer line beneath: hash + path + branch. */
+.session-sub {
+  display: flex;
+  align-items: baseline;
+  gap: 6px;
+  font-size: 0.78em;
   color: var(--vscode-descriptionForeground);
+  white-space: nowrap;
+  overflow: hidden;
+}
+.session-hash {
+  font-family: var(--vscode-editor-font-family, monospace);
+  opacity: 0.9;
+  flex: none;
+}
+.session-path {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  /* Keep the meaningful tail of long paths visible. */
+  direction: rtl;
+  text-align: left;
+  unicode-bidi: plaintext;
+}
+.session-branch {
+  flex: none;
+  opacity: 0.9;
+}
+.session-branch::before {
+  content: "⎇ ";
+}
+
+.session-activity {
+  color: var(--vscode-foreground);
+  opacity: 0.85;
   font-size: 0.9em;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+  margin-top: 2px;
 }
 
 .session-meta {
@@ -79,7 +115,7 @@ body {
 .history {
   display: none;
   padding: 4px 12px 10px 30px;
-  max-height: 220px;
+  max-height: 240px;
   overflow-y: auto;
 }
 .session.expanded .history {
@@ -88,19 +124,27 @@ body {
 
 .history-entry {
   display: grid;
-  grid-template-columns: 64px auto 1fr;
+  grid-template-columns: 120px 1fr;
   gap: var(--gap);
   font-size: 0.85em;
   padding: 2px 0;
-  color: var(--vscode-foreground);
 }
-.history-time { color: var(--vscode-descriptionForeground); }
-.history-event { font-weight: 600; }
-.history-detail {
+.history-time {
   color: var(--vscode-descriptionForeground);
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+}
+.history-summary {
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+}
+.history-tag {
+  font-size: 0.85em;
+  padding: 0 4px;
+  border-radius: 3px;
+  background: var(--vscode-badge-background);
+  color: var(--vscode-badge-foreground);
 }
 
 .empty {

@@ -1,16 +1,16 @@
 import { EventEmitter } from "events";
-import * as path from "path";
 import {
   ActivityEntry,
   DashboardSnapshot,
-  ProgressUpdate,
   SessionState,
+  TranscriptEntry,
 } from "./types";
+import { toEpoch } from "./transcriptReader";
+import { summarizeTool } from "./summarize";
 
 /**
- * In-memory projection of session state, built by reducing ProgressUpdate
- * events (from startup replay + live tail). The JSONL files on disk remain the
- * durable source of truth; this is a fast-render cache.
+ * In-memory projection of session state, reduced from transcript entries
+ * (startup replay + live tail). Transcript files remain the source of truth.
  */
 export class SessionStore extends EventEmitter {
   private readonly sessions = new Map<string, SessionState>();
@@ -22,100 +22,109 @@ export class SessionStore extends EventEmitter {
     super();
   }
 
-  /** Apply a single event. Returns true if state changed. */
-  apply(update: ProgressUpdate): void {
-    const session = this.ensureSession(update);
-
-    // Keep cwd fresh if a later event carries it.
-    if (update.cwd) {
-      session.cwd = update.cwd;
+  /** Reduce a single transcript entry. */
+  apply(entry: TranscriptEntry): void {
+    const sessionId = entry.sessionId;
+    if (!sessionId) {
+      return;
     }
-    session.lastActivity = Math.max(session.lastActivity, update.ts);
-
-    switch (update.event) {
-      case "SessionStart":
-        session.startedAt = update.ts || session.startedAt;
-        session.status = "active";
-        break;
-      case "PostToolUse":
-        session.toolCalls += 1;
-        session.lastTool = update.tool ?? session.lastTool;
-        session.status = "active";
-        break;
-      case "SubagentStart":
-        session.activeSubagents += 1;
-        session.status = "active";
-        break;
-      case "SubagentStop":
-        session.activeSubagents = Math.max(0, session.activeSubagents - 1);
-        break;
-      case "Stop":
-        // Turn finished; session still alive but idle until next activity.
-        session.status = "idle";
-        break;
-      case "SessionEnd":
-        session.status = "completed";
-        session.activeSubagents = 0;
-        break;
+    const session = this.ensureSession(sessionId, entry);
+    const ts = toEpoch(entry.timestamp);
+    if (ts) {
+      session.lastActivity = Math.max(session.lastActivity, ts);
+      if (!session.startedAt) {
+        session.startedAt = ts;
+      }
+    }
+    if (entry.cwd) {
+      session.cwd = entry.cwd;
+      if (!session.title) {
+        session.title = entry.cwd;
+      }
+    }
+    if (typeof entry.gitBranch === "string") {
+      session.gitBranch = entry.gitBranch || session.gitBranch;
     }
 
-    this.pushHistory(session, {
-      ts: update.ts,
-      event: update.event,
-      tool: update.tool,
-      detail: update.detail,
-    });
+    switch (entry.type) {
+      case "ai-title":
+        if (typeof entry.aiTitle === "string" && entry.aiTitle.trim()) {
+          session.title = entry.aiTitle.trim();
+        }
+        break;
+      case "agent-name":
+        // Only use as a title if we have nothing better than the path yet.
+        if (
+          typeof entry.agentName === "string" &&
+          (!session.title || session.title === session.cwd)
+        ) {
+          session.title = entry.agentName;
+        }
+        break;
+      case "assistant":
+        this.applyAssistant(session, entry, ts);
+        break;
+    }
   }
 
-  /**
-   * Apply a batch of events without emitting per-event. Used for startup
-   * replay. Emits a single "changed" at the end.
-   */
-  applyBatch(updates: ProgressUpdate[]): void {
-    for (const u of updates) {
-      this.apply(u);
+  /** Extract tool_use blocks from an assistant message into worklog entries. */
+  private applyAssistant(
+    session: SessionState,
+    entry: TranscriptEntry,
+    ts: number
+  ): void {
+    const content = entry.message?.content;
+    if (!Array.isArray(content)) {
+      return;
+    }
+    for (const block of content) {
+      if (block?.type !== "tool_use" || typeof block.name !== "string") {
+        continue;
+      }
+      const summary = summarizeTool(block.name, block.input);
+      const activity: ActivityEntry = {
+        ts: ts || session.lastActivity,
+        tool: block.name,
+        summary,
+        subagent: entry.isSidechain === true,
+      };
+      session.toolCalls += 1;
+      session.lastSummary = summary;
+      this.pushHistory(session, activity);
+    }
+  }
+
+  applyBatch(entries: TranscriptEntry[]): void {
+    for (const e of entries) {
+      this.apply(e);
     }
     this.emitChanged();
   }
 
-  /** Apply one event and emit. Used for live tail. */
-  applyLive(update: ProgressUpdate): void {
-    this.apply(update);
+  applyLive(entry: TranscriptEntry): void {
+    this.apply(entry);
     this.emitChanged();
   }
 
-  /** Recompute idle/active status based on wall clock; emits if anything flipped. */
+  /** Flip stale active sessions to idle based on wall clock. */
   reconcileIdle(nowSeconds: number): void {
     let changed = false;
     for (const session of this.sessions.values()) {
-      if (session.status !== "active") {
-        continue;
-      }
-      if (nowSeconds - session.lastActivity >= this.idleThresholdSeconds) {
-        session.status = "idle";
+      const wasIdle = session.status === "idle";
+      const isIdle =
+        nowSeconds - session.lastActivity >= this.idleThresholdSeconds;
+      const next = isIdle ? "idle" : "active";
+      if (session.status !== next) {
+        session.status = next;
         changed = true;
       }
+      void wasIdle;
     }
     if (changed) {
       this.emitChanged();
     }
   }
 
-  /** Remove completed sessions from the in-memory view. */
-  clearCompleted(): void {
-    let changed = false;
-    for (const [id, session] of this.sessions) {
-      if (session.status === "completed") {
-        this.sessions.delete(id);
-        changed = true;
-      }
-    }
-    if (changed) {
-      this.emitChanged();
-    }
-  }
-
-  /** Drop all in-memory state (e.g. before a full re-read). */
   reset(): void {
     this.sessions.clear();
   }
@@ -128,25 +137,27 @@ export class SessionStore extends EventEmitter {
       sessions,
       totalActive: sessions.filter((s) => s.status === "active").length,
       totalToolCalls: sessions.reduce((sum, s) => sum + s.toolCalls, 0),
-      generatedAt: Math.floor(epochMs() / 1000),
+      generatedAt: Math.floor(Date.now() / 1000),
     };
   }
 
-  private ensureSession(update: ProgressUpdate): SessionState {
-    let session = this.sessions.get(update.sessionId);
+  private ensureSession(id: string, entry: TranscriptEntry): SessionState {
+    let session = this.sessions.get(id);
     if (!session) {
+      const ts = toEpoch(entry.timestamp);
       session = {
-        id: update.sessionId,
-        cwd: update.cwd ?? null,
-        startedAt: update.ts,
-        lastActivity: update.ts,
+        id,
+        cwd: entry.cwd ?? null,
+        title: entry.cwd ?? "",
+        gitBranch: typeof entry.gitBranch === "string" ? entry.gitBranch : null,
+        startedAt: ts,
+        lastActivity: ts,
         status: "active",
         toolCalls: 0,
-        lastTool: null,
-        activeSubagents: 0,
+        lastSummary: null,
         history: [],
       };
-      this.sessions.set(update.sessionId, session);
+      this.sessions.set(id, session);
     }
     return session;
   }
@@ -161,17 +172,4 @@ export class SessionStore extends EventEmitter {
   private emitChanged(): void {
     this.emit("changed", this.snapshot());
   }
-}
-
-/** Short display name for a working directory. */
-export function cwdLabel(cwd: string | null): string {
-  if (!cwd) {
-    return "unknown";
-  }
-  return path.basename(cwd.replace(/\/+$/, "")) || cwd;
-}
-
-// Wrapped so the rest of the module reads cleanly; isolated for testability.
-function epochMs(): number {
-  return Date.now();
 }

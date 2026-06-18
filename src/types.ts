@@ -1,57 +1,65 @@
 /**
- * Shared types for the Claude Progress Dashboard.
+ * Shared types for Agent Pulse.
  *
- * Events are produced by Claude Code hooks (see scripts/log-event.sh) and
- * appended as one JSON object per line to per-session JSONL files. The
- * extension reads those files and projects them into SessionState.
+ * The dashboard reads Claude Code transcript files directly:
+ *   ~/.claude/projects/<encoded-cwd>/<sessionId>.jsonl
+ * Each line is one JSON event. We project the relevant ones into SessionState.
  */
 
-/** The hook events we record. Mirrors the hook names in scripts/log-event.sh. */
-export type EventName =
-  | "SessionStart"
-  | "SessionEnd"
-  | "PostToolUse"
-  | "Stop"
-  | "SubagentStart"
-  | "SubagentStop";
+/** A single transcript line. Only the fields we use are typed; the rest pass through. */
+export interface TranscriptEntry {
+  type?: string;
+  sessionId?: string;
+  cwd?: string;
+  gitBranch?: string;
+  timestamp?: string;
+  /** Present on type === "ai-title": the generated, conversation-based name. */
+  aiTitle?: string;
+  /** Present on type === "agent-name": a slugified name (fallback). */
+  agentName?: string;
+  /** Assistant/user payload. We read message.content[] for tool_use blocks. */
+  message?: {
+    role?: string;
+    stop_reason?: string | null;
+    content?: Array<{
+      type?: string;
+      name?: string;
+      input?: Record<string, unknown>;
+    }>;
+  };
+  /** True for subagent (sidechain) entries. */
+  isSidechain?: boolean;
+  [key: string]: unknown;
+}
 
-/** A single raw event, as written to a JSONL line by a hook. */
-export interface ProgressUpdate {
-  event: EventName;
-  sessionId: string;
+/** A normalized entry in a session's activity worklog. */
+export interface ActivityEntry {
   /** Unix epoch seconds. */
   ts: number;
-  /** Absolute working directory of the session, when available. */
-  cwd?: string;
-  /** Tool name for PostToolUse events (e.g. "Edit", "Bash"). */
-  tool?: string;
-  /** Optional human-readable detail (e.g. a file path or command summary). */
-  detail?: string;
-  /** Subagent identifier for SubagentStart/SubagentStop events. */
-  subagentId?: string;
+  /** Originating tool name (for reference / icons). */
+  tool: string;
+  /** Short human-readable summary, e.g. "Edited extension.ts". */
+  summary: string;
+  /** True if produced by a subagent. */
+  subagent?: boolean;
 }
 
-/** A normalized entry in a session's activity history (UI projection). */
-export interface ActivityEntry {
-  ts: number;
-  event: EventName;
-  tool?: string;
-  detail?: string;
-}
-
-export type SessionStatus = "active" | "idle" | "completed";
+export type SessionStatus = "active" | "idle";
 
 /** The reduced, in-memory state for a single session. */
 export interface SessionState {
   id: string;
   cwd: string | null;
+  /** Generated session name from the conversation (ai-title), or a fallback. */
+  title: string;
+  gitBranch: string | null;
   startedAt: number;
   lastActivity: number;
   status: SessionStatus;
   toolCalls: number;
-  lastTool: string | null;
-  activeSubagents: number;
-  /** Chronological (oldest-first) ring buffer, capped to historyLimit. */
+  /** Summary of the most recent action (for the collapsed row). */
+  lastSummary: string | null;
+  /** Chronological (oldest-first) worklog, capped to historyLimit. */
   history: ActivityEntry[];
 }
 

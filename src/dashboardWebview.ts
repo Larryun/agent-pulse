@@ -7,7 +7,7 @@ import { DashboardSnapshot } from "./types";
  * the webview script (media/dashboard.js).
  */
 export class DashboardWebviewProvider implements vscode.WebviewViewProvider {
-  public static readonly viewType = "claudeDashboard.sessions";
+  public static readonly viewType = "agentPulse.sessions";
 
   private view: vscode.WebviewView | undefined;
   private lastSnapshot: DashboardSnapshot | undefined;
@@ -65,7 +65,7 @@ export class DashboardWebviewProvider implements vscode.WebviewViewProvider {
   <meta http-equiv="Content-Security-Policy"
         content="default-src 'none'; style-src ${webview.cspSource}; script-src 'nonce-${nonce}';" />
   <link href="${styleUri}" rel="stylesheet" />
-  <title>Claude Dashboard</title>
+  <title>Agent Pulse</title>
 </head>
 <body>
   <header id="summary" class="summary">
@@ -73,8 +73,8 @@ export class DashboardWebviewProvider implements vscode.WebviewViewProvider {
   </header>
   <div id="sessions" class="sessions"></div>
   <div id="empty" class="empty">
-    <p>No Claude Code sessions found.</p>
-    <p>Run <code>Claude Dashboard: Install Hooks</code> from the Command Palette, then start a session.</p>
+    <p>No agent sessions found.</p>
+    <p>Start a Claude Code session and your activity will appear here automatically.</p>
   </div>
   <script nonce="${nonce}" src="${scriptUri}"></script>
 </body>

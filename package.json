@@ -1,9 +1,9 @@
 {
-  "name": "claude-progress-dashboard",
-  "displayName": "Claude Progress Dashboard",
-  "description": "Aggregated, real-time dashboard of your Claude Code sessions — status, activity, and history across all sessions, including Remote SSH.",
-  "version": "0.1.1",
-  "publisher": "your-publisher-id",
+  "name": "agent-pulse",
+  "displayName": "Agent Pulse",
+  "description": "Real-time, aggregated dashboard of your AI coding-agent sessions (Claude Code) — status, activity worklog, and history across all sessions, including Remote SSH.",
+  "version": "0.1.0",
+  "publisher": "Larryun",
   "license": "MIT",
   "icon": "media/icon.png",
   "engines": {
@@ -14,21 +14,23 @@
     "Visualization"
   ],
   "keywords": [
+    "agent pulse",
     "claude",
     "claude code",
+    "kiro",
     "ai",
     "dashboard",
-    "agent",
+    "coding agent",
     "sessions"
   ],
   "repository": {
     "type": "git",
-    "url": "https://github.com/your-org/claude-progress-dashboard.git"
+    "url": "https://github.com/Larryun/agent-pulse.git"
   },
   "bugs": {
-    "url": "https://github.com/your-org/claude-progress-dashboard/issues"
+    "url": "https://github.com/Larryun/agent-pulse/issues"
   },
-  "homepage": "https://github.com/your-org/claude-progress-dashboard#readme",
+  "homepage": "https://github.com/Larryun/agent-pulse#readme",
   "main": "./out/extension.js",
   "activationEvents": [
     "onStartupFinished"
@@ -37,16 +39,16 @@
     "viewsContainers": {
       "activitybar": [
         {
-          "id": "claudeDashboard",
-          "title": "Claude Dashboard",
+          "id": "agentPulse",
+          "title": "Agent Pulse",
           "icon": "media/activity-icon.svg"
         }
       ]
     },
     "views": {
-      "claudeDashboard": [
+      "agentPulse": [
         {
-          "id": "claudeDashboard.sessions",
+          "id": "agentPulse.sessions",
           "name": "Sessions",
           "type": "webview"
         }
@@ -54,58 +56,43 @@
     },
     "commands": [
       {
-        "command": "claudeDashboard.show",
-        "title": "Claude Dashboard: Show Sessions",
-        "category": "Claude Dashboard"
+        "command": "agentPulse.show",
+        "title": "Agent Pulse: Show Sessions",
+        "category": "Agent Pulse"
       },
       {
-        "command": "claudeDashboard.installHooks",
-        "title": "Claude Dashboard: Install Hooks",
-        "category": "Claude Dashboard"
-      },
-      {
-        "command": "claudeDashboard.refresh",
-        "title": "Claude Dashboard: Refresh",
-        "category": "Claude Dashboard",
+        "command": "agentPulse.refresh",
+        "title": "Agent Pulse: Refresh",
+        "category": "Agent Pulse",
         "icon": "$(refresh)"
-      },
-      {
-        "command": "claudeDashboard.clearCompleted",
-        "title": "Claude Dashboard: Clear Completed Sessions",
-        "category": "Claude Dashboard"
       }
     ],
     "menus": {
       "view/title": [
         {
-          "command": "claudeDashboard.refresh",
-          "when": "view == claudeDashboard.sessions",
+          "command": "agentPulse.refresh",
+          "when": "view == agentPulse.sessions",
           "group": "navigation"
         }
       ]
     },
     "configuration": {
-      "title": "Claude Progress Dashboard",
+      "title": "Agent Pulse",
       "properties": {
-        "claudeDashboard.eventsDirectory": {
+        "agentPulse.projectsDirectory": {
           "type": "string",
           "default": "",
-          "description": "Directory containing per-session JSONL event logs. Leave empty to use the default (~/.claude/dashboard/events)."
+          "description": "Directory containing Claude Code transcripts. Leave empty to use the default (~/.claude/projects)."
         },
-        "claudeDashboard.idleThresholdSeconds": {
+        "agentPulse.idleThresholdSeconds": {
           "type": "number",
           "default": 60,
           "description": "Seconds of inactivity after which an active session is shown as idle."
         },
-        "claudeDashboard.historyLimit": {
+        "agentPulse.historyLimit": {
           "type": "number",
           "default": 100,
-          "description": "Maximum number of in-memory activity entries kept per session for the UI."
-        },
-        "claudeDashboard.retentionDays": {
-          "type": "number",
-          "default": 7,
-          "description": "Delete event log files older than this many days on startup. Set to 0 to disable pruning."
+          "description": "Maximum number of worklog entries kept per session for the UI."
         }
       }
     }

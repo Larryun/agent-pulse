@@ -10,8 +10,8 @@ export class StatusBarController {
       vscode.StatusBarAlignment.Left,
       100
     );
-    this.item.command = "claudeDashboard.show";
-    this.item.tooltip = "Open the Claude Progress Dashboard";
+    this.item.command = "agentPulse.show";
+    this.item.tooltip = "Open the Agent Pulse";
   }
 
   update(snapshot: DashboardSnapshot): void {
