@@ -171,19 +171,33 @@ async function installHooks(
 
     const command = `${scriptDest}`;
     for (const event of HOOK_EVENTS) {
-      const entry = {
-        type: "command",
-        command: `"${command}" ${event}`,
+      // Claude Code hook shape: each event maps to an array of matcher groups,
+      // and each group has a `hooks` array of command entries.
+      //   { "PostToolUse": [{ "matcher": "", "hooks": [{ type, command }] }] }
+      const matcherGroup = {
+        matcher: "",
+        hooks: [
+          {
+            type: "command",
+            command: `"${command}" ${event}`,
+          },
+        ],
       };
+
       const existing = Array.isArray(settings.hooks[event])
         ? settings.hooks[event]
         : [];
-      // Avoid duplicate installs: drop any prior log-event.sh entries.
-      const cleaned = existing.filter(
-        (e: any) =>
-          !(typeof e?.command === "string" && e.command.includes("log-event.sh"))
-      );
-      cleaned.push(entry);
+      // Avoid duplicate installs: drop any prior groups that reference our
+      // helper script (in their nested hooks commands).
+      const cleaned = existing.filter((group: any) => {
+        const nested = Array.isArray(group?.hooks) ? group.hooks : [];
+        const isOurs = nested.some(
+          (h: any) =>
+            typeof h?.command === "string" && h.command.includes("log-event.sh")
+        );
+        return !isOurs;
+      });
+      cleaned.push(matcherGroup);
       settings.hooks[event] = cleaned;
     }
 

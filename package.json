@@ -2,7 +2,7 @@
   "name": "claude-progress-dashboard",
   "displayName": "Claude Progress Dashboard",
   "description": "Aggregated, real-time dashboard of your Claude Code sessions — status, activity, and history across all sessions, including Remote SSH.",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "publisher": "your-publisher-id",
   "license": "MIT",
   "icon": "media/icon.png",

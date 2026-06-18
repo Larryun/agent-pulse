@@ -2,6 +2,11 @@
 
 All notable changes to this project are documented here.
 
+## [0.1.1] - Unreleased
+
+### Fixed
+- `Install Hooks` now writes hooks in Claude Code's required shape (`matcher` + nested `hooks` array) instead of a flat command list, which triggered a settings validation error.
+
 ## [0.1.0] - Unreleased
 
 ### Added
