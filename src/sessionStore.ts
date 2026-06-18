@@ -151,8 +151,13 @@ export class SessionStore extends EventEmitter {
   }
 
   snapshot(): DashboardSnapshot {
+    // Sort by most recent worklog activity (the last history entry), so the
+    // session that most recently *did* something is on top. Falls back to
+    // lastActivity for sessions that have no recorded actions yet.
+    const recency = (s: SessionState): number =>
+      s.history.length ? s.history[s.history.length - 1].ts : s.lastActivity;
     const sessions = [...this.sessions.values()].sort(
-      (a, b) => b.lastActivity - a.lastActivity
+      (a, b) => recency(b) - recency(a)
     );
     return {
       sessions,
