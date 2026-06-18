@@ -76,6 +76,7 @@ npx @vscode/vsce package
 
 ## Roadmap
 
+- **Open in terminal** — click a session to resume it in a terminal (e.g. `claude --resume <id>`) at its working directory.
 - **Multi-agent support** — pluggable transcript adapters (Kiro at `~/.kiro/sessions/cli/*.jsonl`, and others).
 - Full editor-tab view with a richer timeline.
 - Token-usage metrics per session.

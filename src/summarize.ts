@@ -20,6 +20,38 @@ export function clamp(s: string, max = 60): string {
 }
 
 /**
+ * Turn Claude's narration text into a one-line worklog label: take the first
+ * sentence/line, strip light markdown, collapse whitespace. Does NOT append an
+ * ellipsis — visual truncation is left to CSS (text-overflow). Returns "" when
+ * there's nothing useful to show.
+ */
+export function narrationFromText(text: unknown): string {
+  if (typeof text !== "string") {
+    return "";
+  }
+  // First non-empty line, then first sentence within it.
+  const firstLine = text
+    .split("\n")
+    .map((l) => l.trim())
+    .find((l) => l.length > 0);
+  if (!firstLine) {
+    return "";
+  }
+  const sentence = firstLine.split(/(?<=[.!?])\s/)[0] ?? firstLine;
+  // Strip light markdown. Remove emphasis/code markers BEFORE leading
+  // list/heading markers, so "**Bold**" isn't mangled by the leading strip.
+  const cleaned = sentence
+    .replace(/\*\*(.+?)\*\*/g, "$1")
+    .replace(/`(.+?)`/g, "$1")
+    .replace(/^[#>\-*\d.\s]+/, "")
+    .replace(/\s+/g, " ")
+    .trim();
+  // Hard cap to bound payload size, but without an ellipsis (CSS truncates).
+  const MAX = 200;
+  return cleaned.length > MAX ? cleaned.slice(0, MAX) : cleaned;
+}
+
+/**
  * Build a short summary for a tool invocation.
  * `name` is the tool name; `input` is its argument object.
  */

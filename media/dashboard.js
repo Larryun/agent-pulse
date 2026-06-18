@@ -125,6 +125,10 @@
     )}`;
     header.appendChild(meta);
 
+    // TODO: add a click affordance to open this session in a terminal
+    // (e.g. `claude --resume <id>` in the session's cwd). Needs a webview
+    // -> extension message ("openSession") handled in dashboardWebview.ts,
+    // which spawns a vscode.Terminal at session.cwd and runs the resume cmd.
     header.addEventListener("click", () => {
       if (expanded.has(session.id)) {
         expanded.delete(session.id);
@@ -161,20 +165,39 @@
       time.className = "history-time";
       time.textContent = fmtTime(entry.ts);
 
-      const text = document.createElement("span");
-      text.className = "history-summary";
-      text.textContent = entry.summary;
-      text.title = entry.summary;
+      // Content column: Claude's narration (when present) as the primary
+      // line, with the rule-based summary as a secondary detail. When there's
+      // no narration, the summary stands alone as the primary line.
+      const content = document.createElement("div");
+      content.className = "history-content";
+
+      const primary = document.createElement("span");
+      primary.className = "history-summary";
+      primary.textContent = entry.narration || entry.summary;
+      primary.title = entry.narration
+        ? `${entry.narration}\n(${entry.summary})`
+        : entry.summary;
       if (entry.subagent) {
         const tag = document.createElement("span");
         tag.className = "history-tag";
         tag.textContent = "subagent";
-        text.appendChild(document.createTextNode(" "));
-        text.appendChild(tag);
+        primary.appendChild(document.createTextNode(" "));
+        primary.appendChild(tag);
+      }
+      content.appendChild(primary);
+
+      // Show the mechanical summary too, but only when it adds info beyond
+      // the narration (i.e. there was a narration line above it).
+      if (entry.narration) {
+        const detail = document.createElement("span");
+        detail.className = "history-detail";
+        detail.textContent = entry.summary;
+        detail.title = entry.summary;
+        content.appendChild(detail);
       }
 
       row.appendChild(time);
-      row.appendChild(text);
+      row.appendChild(content);
       box.appendChild(row);
     }
     return box;

@@ -6,7 +6,7 @@ import {
   TranscriptEntry,
 } from "./types";
 import { toEpoch } from "./transcriptReader";
-import { summarizeTool } from "./summarize";
+import { summarizeTool, narrationFromText } from "./summarize";
 
 /**
  * In-memory projection of session state, reduced from transcript entries
@@ -14,6 +14,12 @@ import { summarizeTool } from "./summarize";
  */
 export class SessionStore extends EventEmitter {
   private readonly sessions = new Map<string, SessionState>();
+  /**
+   * Most recent assistant narration (plain text) per session, awaiting the
+   * tool call(s) it describes. Claude narrates in a separate message just
+   * before the tools, so we carry it forward until consumed.
+   */
+  private readonly pendingNarration = new Map<string, string>();
 
   constructor(
     private historyLimit: number,
@@ -67,7 +73,11 @@ export class SessionStore extends EventEmitter {
     }
   }
 
-  /** Extract tool_use blocks from an assistant message into worklog entries. */
+  /**
+   * Walk an assistant message's content blocks in order. Text blocks become
+   * the "pending narration" describing the work; tool_use blocks consume it
+   * (the narration label is attached to the tools that follow it).
+   */
   private applyAssistant(
     session: SessionState,
     entry: TranscriptEntry,
@@ -78,18 +88,28 @@ export class SessionStore extends EventEmitter {
       return;
     }
     for (const block of content) {
+      if (block?.type === "text") {
+        const narration = narrationFromText((block as { text?: unknown }).text);
+        if (narration) {
+          this.pendingNarration.set(session.id, narration);
+        }
+        continue;
+      }
       if (block?.type !== "tool_use" || typeof block.name !== "string") {
         continue;
       }
       const summary = summarizeTool(block.name, block.input);
+      const narration = this.pendingNarration.get(session.id);
       const activity: ActivityEntry = {
         ts: ts || session.lastActivity,
         tool: block.name,
         summary,
+        narration: narration || undefined,
         subagent: entry.isSidechain === true,
       };
       session.toolCalls += 1;
-      session.lastSummary = summary;
+      // The collapsed row prefers narration, falling back to the summary.
+      session.lastSummary = narration || summary;
       this.pushHistory(session, activity);
     }
   }
@@ -127,6 +147,7 @@ export class SessionStore extends EventEmitter {
 
   reset(): void {
     this.sessions.clear();
+    this.pendingNarration.clear();
   }
 
   snapshot(): DashboardSnapshot {

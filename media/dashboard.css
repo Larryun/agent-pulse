@@ -125,16 +125,29 @@ body {
 .history-entry {
   display: grid;
   grid-template-columns: 120px 1fr;
+  align-items: start;
   gap: var(--gap);
   font-size: 0.85em;
-  padding: 2px 0;
+  padding: 3px 0;
 }
 .history-time {
   color: var(--vscode-descriptionForeground);
   white-space: nowrap;
   font-variant-numeric: tabular-nums;
 }
+.history-content {
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
 .history-summary {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.history-detail {
+  color: var(--vscode-descriptionForeground);
+  font-size: 0.92em;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;

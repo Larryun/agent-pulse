@@ -40,6 +40,11 @@ export interface ActivityEntry {
   tool: string;
   /** Short human-readable summary, e.g. "Edited extension.ts". */
   summary: string;
+  /**
+   * Claude's own narration preceding this action, when available — its plain
+   * description of what it's doing. Falls back to undefined (UI shows summary).
+   */
+  narration?: string;
   /** True if produced by a subagent. */
   subagent?: boolean;
 }
