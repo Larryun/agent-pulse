@@ -1,4 +1,5 @@
 import * as vscode from "vscode";
+import * as fs from "fs";
 import { DashboardSnapshot } from "./types";
 
 /**
@@ -69,9 +70,22 @@ export class DashboardWebviewProvider implements vscode.WebviewViewProvider {
     );
     const command = template.replace(/\$\{sessionId\}/g, sessionId);
 
+    // Only pass cwd if it still exists; otherwise let the terminal open in its
+    // default location (and tell the user why) rather than failing to spawn.
+    let terminalCwd: string | undefined;
+    if (typeof cwd === "string" && cwd) {
+      if (fs.existsSync(cwd)) {
+        terminalCwd = cwd;
+      } else {
+        vscode.window.showWarningMessage(
+          `Agent Pulse: session directory no longer exists (${cwd}). Opening a terminal in the default location.`
+        );
+      }
+    }
+
     const terminal = vscode.window.createTerminal({
       name: `Claude ${sessionId.slice(0, 8)}`,
-      cwd: typeof cwd === "string" && cwd ? cwd : undefined,
+      cwd: terminalCwd,
     });
     terminal.show();
     if (command.trim()) {

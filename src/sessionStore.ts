@@ -42,7 +42,11 @@ export class SessionStore extends EventEmitter {
         session.startedAt = ts;
       }
     }
-    if (entry.cwd) {
+    if (entry.cwd && !session.cwd) {
+      // The session's working directory is where it was launched — the first
+      // cwd we see. Don't overwrite it: Claude may `cd` elsewhere mid-session
+      // (or emit transient paths like .../tool-results), which would otherwise
+      // clobber the real directory and break "open in terminal".
       session.cwd = entry.cwd;
       if (!session.title) {
         session.title = entry.cwd;
