@@ -10,7 +10,7 @@ Agent Pulse currently supports **Claude Code**, with a design that's ready to gr
 
 - **Aggregated view** — all your sessions in one panel, with a live summary header (sessions · active · total tool calls).
 - **Session names** — shows the AI-generated, conversation-based session title, with the session hash and working-directory path on a smaller line.
-- **Worklog** — instead of raw tool names, each action is summarized (e.g. *"Edited extension.ts"*, *"Ran: npm run compile"*, *"Task: design architecture"*). Click a session to expand its full chronological worklog.
+- **Worklog** — instead of raw tool names, each action is summarized (e.g. *"Edited extension.ts"*, *"Ran: npm run compile"*, *"Skill: loop"*). Click a session to expand its full chronological worklog. Each row has a colored action chip (Ran / Edit / Read / Search / …), and hovering shows the full message text.
 - **Open in terminal** — hover a session and click **⎘ Open** to resume it in a terminal at its working directory (runs `claude --resume <id>` by default; configurable).
 - **Live & zero-setup** — reads the agent's own transcript files directly. No hooks, no config changes, nothing to install into the agent.
 - **Remote SSH friendly** — reads transcripts on the same host where the agent runs.

@@ -101,6 +101,12 @@ export function summarizeTool(
       return "Presented a plan";
     case "ToolSearch":
       return "Looked up a tool";
+    case "Skill": {
+      const skill = typeof i.skill === "string" ? i.skill : "";
+      // Skills can be namespaced (e.g. "plugin:skill"); show the readable tail.
+      const short = skill.includes(":") ? skill.slice(skill.lastIndexOf(":") + 1) : skill;
+      return short ? clamp(`Skill: ${short}`) : "Ran a skill";
+    }
     default:
       // MCP tools and anything else: humanize the name.
       return clamp(humanizeToolName(name));
@@ -120,6 +126,50 @@ function quoteIf(v: unknown): string {
 function firstCommand(cmd: string): string {
   const head = cmd.split(/&&|\|\||;|\n/)[0];
   return head.trim();
+}
+
+/**
+ * A short, categorical tag for a tool — used to render a colored chip in the
+ * worklog (e.g. "Ran", "Edit", "Read", "Skill", "Search"). Keep these stable;
+ * the webview maps them to colors via `data-tag`.
+ */
+export function actionTag(name: string): string {
+  switch (name) {
+    case "Write":
+    case "Edit":
+    case "MultiEdit":
+    case "NotebookEdit":
+      return "Edit";
+    case "Read":
+      return "Read";
+    case "Bash":
+      return "Ran";
+    case "Glob":
+    case "Grep":
+    case "WebSearch":
+      return "Search";
+    case "WebFetch":
+    case "ReadInternalWebsites":
+      return "Web";
+    case "Agent":
+    case "Task":
+      return "Task";
+    case "Skill":
+      return "Skill";
+    case "TodoWrite":
+    case "TaskCreate":
+    case "TaskUpdate":
+      return "Task";
+    case "AskUserQuestion":
+      return "Ask";
+    case "ExitPlanMode":
+    case "EnterPlanMode":
+      return "Plan";
+    case "ToolSearch":
+      return "Tool";
+    default:
+      return name.startsWith("mcp__") ? "MCP" : "Tool";
+  }
 }
 
 /** "mcp__server__do_thing" -> "do thing (server)"; "FooBar" -> "Foo Bar". */

@@ -38,6 +38,8 @@ export interface ActivityEntry {
   ts: number;
   /** Originating tool name (for reference / icons). */
   tool: string;
+  /** Short categorical tag for the colored chip, e.g. "Ran", "Edit", "Skill". */
+  tag: string;
   /** Short human-readable summary, e.g. "Edited extension.ts". */
   summary: string;
   /**
@@ -45,6 +47,11 @@ export interface ActivityEntry {
    * description of what it's doing. Falls back to undefined (UI shows summary).
    */
   narration?: string;
+  /**
+   * The full, untruncated narration text (the complete assistant message),
+   * shown on hover. Undefined when there was no narration.
+   */
+  fullText?: string;
   /** True if produced by a subagent. */
   subagent?: boolean;
 }

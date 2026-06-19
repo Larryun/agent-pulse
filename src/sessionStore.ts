@@ -6,7 +6,7 @@ import {
   TranscriptEntry,
 } from "./types";
 import { toEpoch } from "./transcriptReader";
-import { summarizeTool, narrationFromText } from "./summarize";
+import { summarizeTool, narrationFromText, actionTag } from "./summarize";
 
 /**
  * In-memory projection of session state, reduced from transcript entries
@@ -15,11 +15,15 @@ import { summarizeTool, narrationFromText } from "./summarize";
 export class SessionStore extends EventEmitter {
   private readonly sessions = new Map<string, SessionState>();
   /**
-   * Most recent assistant narration (plain text) per session, awaiting the
-   * tool call(s) it describes. Claude narrates in a separate message just
-   * before the tools, so we carry it forward until consumed.
+   * Most recent assistant narration per session, awaiting the tool call(s) it
+   * describes. Claude narrates in a separate message just before the tools, so
+   * we carry it forward until consumed. `label` is the one-line summary; `full`
+   * is the complete message text (shown on hover).
    */
-  private readonly pendingNarration = new Map<string, string>();
+  private readonly pendingNarration = new Map<
+    string,
+    { label: string; full: string }
+  >();
 
   constructor(
     private historyLimit: number,
@@ -93,9 +97,16 @@ export class SessionStore extends EventEmitter {
     }
     for (const block of content) {
       if (block?.type === "text") {
-        const narration = narrationFromText((block as { text?: unknown }).text);
-        if (narration) {
-          this.pendingNarration.set(session.id, narration);
+        const rawText =
+          typeof (block as { text?: unknown }).text === "string"
+            ? ((block as { text: string }).text)
+            : "";
+        const label = narrationFromText(rawText);
+        if (label) {
+          this.pendingNarration.set(session.id, {
+            label,
+            full: rawText.trim(),
+          });
         }
         continue;
       }
@@ -103,17 +114,19 @@ export class SessionStore extends EventEmitter {
         continue;
       }
       const summary = summarizeTool(block.name, block.input);
-      const narration = this.pendingNarration.get(session.id);
+      const pending = this.pendingNarration.get(session.id);
       const activity: ActivityEntry = {
         ts: ts || session.lastActivity,
         tool: block.name,
+        tag: actionTag(block.name),
         summary,
-        narration: narration || undefined,
+        narration: pending?.label || undefined,
+        fullText: pending?.full || undefined,
         subagent: entry.isSidechain === true,
       };
       session.toolCalls += 1;
       // The collapsed row prefers narration, falling back to the summary.
-      session.lastSummary = narration || summary;
+      session.lastSummary = pending?.label || summary;
       this.pushHistory(session, activity);
     }
   }

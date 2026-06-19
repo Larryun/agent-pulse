@@ -180,6 +180,12 @@
       time.className = "history-time";
       time.textContent = fmtTime(entry.ts);
 
+      // Colored action chip (Ran / Edit / Read / Skill / …).
+      const chip = document.createElement("span");
+      chip.className = "history-chip";
+      chip.dataset.tag = entry.tag || "Tool";
+      chip.textContent = entry.tag || "Tool";
+
       // Content column: Claude's narration (when present) as the primary
       // line, with the rule-based summary as a secondary detail. When there's
       // no narration, the summary stands alone as the primary line.
@@ -189,15 +195,15 @@
       const primary = document.createElement("span");
       primary.className = "history-summary";
       primary.textContent = entry.narration || entry.summary;
-      primary.title = entry.narration
-        ? `${entry.narration}\n(${entry.summary})`
-        : entry.summary;
+      // Hover shows the FULL message text (untruncated), plus the summary.
+      const full = entry.fullText || entry.narration || entry.summary;
+      primary.title = entry.narration ? `${full}\n\n(${entry.summary})` : full;
       if (entry.subagent) {
-        const tag = document.createElement("span");
-        tag.className = "history-tag";
-        tag.textContent = "subagent";
+        const sub = document.createElement("span");
+        sub.className = "history-subagent";
+        sub.textContent = "subagent";
         primary.appendChild(document.createTextNode(" "));
-        primary.appendChild(tag);
+        primary.appendChild(sub);
       }
       content.appendChild(primary);
 
@@ -212,6 +218,7 @@
       }
 
       row.appendChild(time);
+      row.appendChild(chip);
       row.appendChild(content);
       box.appendChild(row);
     }
