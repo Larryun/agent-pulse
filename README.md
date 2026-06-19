@@ -60,7 +60,7 @@ A session is "discovered" the moment a transcript line carrying its `sessionId` 
 | `agentPulse.idleThresholdSeconds` | `60` | Inactivity before a session shows as idle |
 | `agentPulse.historyLimit` | `100` | Worklog entries kept in memory per session |
 | `agentPulse.resumeCommand` | `claude --resume ${sessionId}` | Command run when opening a session in a terminal (`${sessionId}` is substituted; empty = just open a terminal in the directory) |
-| `agentPulse.terminalName` | `title` | How to name the opened terminal: `title` (session's AI title), `hash` (short session id), or `auto` (let Claude Code drive the tab title live) |
+| `agentPulse.terminalName` | `auto` | How to name the opened terminal: `auto` (let Claude Code drive the tab title/icon live, including its loading animation), `title` (session's AI title), or `hash` (short session id) |
 
 ## Privacy
 

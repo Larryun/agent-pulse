@@ -57,11 +57,12 @@ export class DashboardWebviewProvider implements vscode.WebviewViewProvider {
    * template is user-configurable; `${sessionId}` is substituted.
    *
    * Terminal naming (agentPulse.terminalName):
-   *  - "title" (default): use the session's AI-generated title.
+   *  - "auto" (default): pass no name so Claude Code can drive the tab title
+   *    and icon live (including its loading animation) via terminal escape
+   *    sequences (requires `${sequence}` in terminal.integrated.tabs.title,
+   *    which is in the VS Code default).
+   *  - "title": use the session's AI-generated title.
    *  - "hash": use the short session id.
-   *  - "auto": pass no name so Claude Code can drive the tab title live via
-   *    terminal escape sequences (requires `${sequence}` in
-   *    terminal.integrated.tabs.title, which is in the VS Code default).
    */
   private openSessionInTerminal(
     sessionId: unknown,
@@ -78,18 +79,19 @@ export class DashboardWebviewProvider implements vscode.WebviewViewProvider {
     );
     const command = template.replace(/\$\{sessionId\}/g, sessionId);
 
-    const nameMode = config.get<string>("terminalName", "title");
+    const nameMode = config.get<string>("terminalName", "auto");
     let name: string | undefined;
     if (nameMode === "hash") {
       name = `Claude ${sessionId.slice(0, 8)}`;
-    } else if (nameMode === "auto") {
-      name = undefined; // let Claude Code set the tab title
-    } else {
-      // "title" (default): prefer the AI title, fall back to the hash.
+    } else if (nameMode === "title") {
+      // Prefer the AI title, fall back to the hash.
       name =
         typeof title === "string" && title.trim()
           ? title.trim()
           : `Claude ${sessionId.slice(0, 8)}`;
+    } else {
+      // "auto" (default): pass no name so Claude Code drives the title/icon.
+      name = undefined;
     }
 
     // Only pass cwd if it still exists; otherwise let the terminal open in its

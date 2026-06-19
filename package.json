@@ -101,12 +101,12 @@
         },
         "agentPulse.terminalName": {
           "type": "string",
-          "default": "title",
-          "enum": ["title", "hash", "auto"],
+          "default": "auto",
+          "enum": ["auto", "title", "hash"],
           "enumDescriptions": [
+            "Let Claude Code drive the terminal title and icon live, including its loading animation (requires ${sequence} in terminal.integrated.tabs.title, which is the VS Code default).",
             "Name the terminal after the session's AI-generated title.",
-            "Name the terminal after the short session hash.",
-            "Let Claude Code drive the terminal title live (requires ${sequence} in terminal.integrated.tabs.title, which is the VS Code default)."
+            "Name the terminal after the short session hash."
           ],
           "description": "How to name the terminal opened for a session."
         }
