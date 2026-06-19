@@ -5,15 +5,18 @@
   const sessionsEl = document.getElementById("sessions");
   const emptyEl = document.getElementById("empty");
 
-  // Remember which sessions / rows the user expanded, across re-renders.
+  // Remember which sessions / rows the user expanded, across re-renders, plus
+  // the per-session worklog height the user dragged to.
   const savedState = vscode.getState() || {};
   const expanded = new Set(savedState.expanded || []);
   const expandedRows = new Set(savedState.expandedRows || []);
+  const historyHeights = new Map(Object.entries(savedState.historyHeights || {}));
 
   function persistExpanded() {
     vscode.setState({
       expanded: [...expanded],
       expandedRows: [...expandedRows],
+      historyHeights: Object.fromEntries(historyHeights),
     });
   }
 
@@ -175,6 +178,25 @@
   function renderHistory(session) {
     const box = document.createElement("div");
     box.className = "history";
+    // Restore a previously dragged height for this session, if any.
+    const savedH = historyHeights.get(session.id);
+    if (savedH) {
+      box.style.height = savedH + "px";
+    }
+    // Persist the height whenever the user drags the resize handle.
+    if (typeof ResizeObserver !== "undefined") {
+      const ro = new ResizeObserver((entries) => {
+        for (const e of entries) {
+          const h = Math.round(e.contentRect.height);
+          if (h > 0) {
+            historyHeights.set(session.id, h);
+          }
+        }
+        persistExpanded();
+      });
+      // Observe after the first layout so we don't record the initial size.
+      requestAnimationFrame(() => ro.observe(box));
+    }
     // Most recent first.
     const entries = [...session.history].reverse();
     if (!entries.length) {

@@ -137,8 +137,13 @@ body {
 .history {
   display: none;
   padding: 4px 12px 10px 30px;
-  max-height: 240px;
+  /* Resizable height: drag the handle at the bottom edge to make the worklog
+     taller/shorter. Height persists per session (see dashboard.js). */
+  height: 240px;
+  min-height: 80px;
+  max-height: 80vh;
   overflow-y: auto;
+  resize: vertical;
 }
 .session.expanded .history {
   display: block;
