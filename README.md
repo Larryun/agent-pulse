@@ -6,6 +6,8 @@ Agent Pulse currently supports **Claude Code**, with a design that's ready to gr
 
 ![status: active](https://img.shields.io/badge/status-active-brightgreen)
 
+<img src="docs/screenshot.png" alt="Agent Pulse dashboard showing several Claude Code sessions with expandable, color-tagged worklogs" width="400" />
+
 ## Features
 
 - **Aggregated view** — all your sessions in one panel, with a live summary header (sessions · active · total tool calls).

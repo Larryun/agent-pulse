@@ -6,4 +6,5 @@ node_modules/**
 **/*.map
 .git/**
 *.vsix
+docs/**
 CHANGELOG-dev.md
