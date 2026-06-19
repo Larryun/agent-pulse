@@ -17,16 +17,25 @@ export interface TranscriptEntry {
   aiTitle?: string;
   /** Present on type === "agent-name": a slugified name (fallback). */
   agentName?: string;
-  /** Assistant/user payload. We read message.content[] for tool_use blocks. */
+  /**
+   * Assistant/user payload. Assistant content is an array of blocks (we read
+   * tool_use/text); user content is either a plain string (a typed prompt) or
+   * an array of blocks (text and/or tool_result).
+   */
   message?: {
     role?: string;
     stop_reason?: string | null;
-    content?: Array<{
-      type?: string;
-      name?: string;
-      input?: Record<string, unknown>;
-    }>;
+    content?:
+      | string
+      | Array<{
+          type?: string;
+          name?: string;
+          text?: string;
+          input?: Record<string, unknown>;
+        }>;
   };
+  /** True for meta entries (command wrappers, system-injected). */
+  isMeta?: boolean;
   /** True for subagent (sidechain) entries. */
   isSidechain?: boolean;
   [key: string]: unknown;
@@ -34,11 +43,13 @@ export interface TranscriptEntry {
 
 /** A normalized entry in a session's activity worklog. */
 export interface ActivityEntry {
+  /** "tool" = an action Claude took; "prompt" = a message the user sent. */
+  kind: "tool" | "prompt";
   /** Unix epoch seconds. */
   ts: number;
-  /** Originating tool name (for reference / icons). */
+  /** Originating tool name (for reference / icons); "" for prompts. */
   tool: string;
-  /** Short categorical tag for the colored chip, e.g. "Ran", "Edit", "Skill". */
+  /** Short categorical tag for the colored chip, e.g. "Ran", "Edit", "You". */
   tag: string;
   /** Short human-readable summary, e.g. "Edited extension.ts". */
   summary: string;
@@ -69,6 +80,8 @@ export interface SessionState {
   lastActivity: number;
   status: SessionStatus;
   toolCalls: number;
+  /** Total transcript entries seen for this session. */
+  entryCount: number;
   /** Summary of the most recent action (for the collapsed row). */
   lastSummary: string | null;
   /** Chronological (oldest-first) worklog, capped to historyLimit. */

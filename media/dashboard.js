@@ -5,20 +5,29 @@
   const sessionsEl = document.getElementById("sessions");
   const emptyEl = document.getElementById("empty");
 
-  // Remember which sessions the user expanded, across re-renders.
-  const expanded = new Set((vscode.getState() || {}).expanded || []);
+  // Remember which sessions / rows the user expanded, across re-renders.
+  const savedState = vscode.getState() || {};
+  const expanded = new Set(savedState.expanded || []);
+  const expandedRows = new Set(savedState.expandedRows || []);
 
   function persistExpanded() {
-    vscode.setState({ expanded: [...expanded] });
+    vscode.setState({
+      expanded: [...expanded],
+      expandedRows: [...expandedRows],
+    });
   }
 
+  // Compact time (HH:MM) for the row; the full date+time is shown on hover.
   function fmtTime(tsSeconds) {
     if (!tsSeconds) return "";
     const d = new Date(tsSeconds * 1000);
-    const date = d.toLocaleDateString([], {
-      month: "short",
-      day: "numeric",
-    });
+    return d.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
+  }
+
+  function fmtFullTime(tsSeconds) {
+    if (!tsSeconds) return "";
+    const d = new Date(tsSeconds * 1000);
+    const date = d.toLocaleDateString([], { month: "short", day: "numeric" });
     const time = d.toLocaleTimeString([], {
       hour: "2-digit",
       minute: "2-digit",
@@ -27,15 +36,18 @@
     return `${date} ${time}`;
   }
 
-  function fmtDuration(startSeconds, endSeconds) {
-    if (!startSeconds) return "";
-    const secs = Math.max(0, Math.floor(endSeconds - startSeconds));
-    const h = Math.floor(secs / 3600);
-    const m = Math.floor((secs % 3600) / 60);
-    const s = secs % 60;
-    if (h > 0) return `${h}h ${m}m`;
-    if (m > 0) return `${m}m ${s}s`;
-    return `${s}s`;
+  // Relative "time ago" for the last-active timestamp.
+  function fmtAgo(tsSeconds, nowSeconds) {
+    if (!tsSeconds) return "";
+    const secs = Math.max(0, Math.floor(nowSeconds - tsSeconds));
+    if (secs < 10) return "just now";
+    if (secs < 60) return `${secs}s ago`;
+    const m = Math.floor(secs / 60);
+    if (m < 60) return `${m}m ago`;
+    const h = Math.floor(m / 60);
+    if (h < 24) return `${h}h ago`;
+    const d = Math.floor(h / 24);
+    return `${d}d ago`;
   }
 
   function shortId(id) {
@@ -121,10 +133,10 @@
     meta.className = "session-meta";
     const stats = document.createElement("div");
     stats.className = "session-stats";
-    stats.innerHTML = `${session.toolCalls} tools<br />${fmtDuration(
-      session.startedAt,
-      nowSeconds
-    )}`;
+    const ago = fmtAgo(session.lastActivity, nowSeconds);
+    const count = session.entryCount || 0;
+    stats.innerHTML = `${ago}<br />${count} entries`;
+    stats.title = `Last active ${fmtTime(session.lastActivity)} · ${count} transcript entries`;
     meta.appendChild(stats);
 
     // Open-in-terminal button: resumes the session in a terminal at its cwd.
@@ -172,32 +184,49 @@
       box.appendChild(none);
       return box;
     }
-    for (const entry of entries) {
+    for (let idx = 0; idx < entries.length; idx++) {
+      const entry = entries[idx];
       const row = document.createElement("div");
       row.className = "history-entry";
+      row.dataset.tag = entry.tag || "Tool"; // drives the left color bar + text
+      if (entry.kind === "prompt") {
+        row.classList.add("is-prompt");
+      }
 
       const time = document.createElement("span");
       time.className = "history-time";
       time.textContent = fmtTime(entry.ts);
+      time.title = fmtFullTime(entry.ts);
 
-      // Colored action chip (Ran / Edit / Read / Skill / …).
+      // Colored action chip (Ran / Edit / Read / Skill / You / …).
       const chip = document.createElement("span");
       chip.className = "history-chip";
       chip.dataset.tag = entry.tag || "Tool";
       chip.textContent = entry.tag || "Tool";
 
-      // Content column: Claude's narration (when present) as the primary
-      // line, with the rule-based summary as a secondary detail. When there's
-      // no narration, the summary stands alone as the primary line.
       const content = document.createElement("div");
       content.className = "history-content";
 
-      const primary = document.createElement("span");
-      primary.className = "history-summary";
-      primary.textContent = entry.narration || entry.summary;
-      // Hover shows the FULL message text (untruncated), plus the summary.
+      // The element always holds the FULL text. Collapsed, CSS truncates it to
+      // one line with an ellipsis (based on panel width); clicking toggles the
+      // `.open` class, which wraps the text and grows the row height.
+      const key = `${session.id}#${idx}`;
+      const isOpen = expandedRows.has(key);
       const full = entry.fullText || entry.narration || entry.summary;
-      primary.title = entry.narration ? `${full}\n\n(${entry.summary})` : full;
+
+      const primary = document.createElement("div");
+      primary.className = "history-summary expandable" + (isOpen ? " open" : "");
+      primary.textContent = full;
+      primary.addEventListener("click", () => {
+        if (expandedRows.has(key)) {
+          expandedRows.delete(key);
+          primary.classList.remove("open");
+        } else {
+          expandedRows.add(key);
+          primary.classList.add("open");
+        }
+        persistExpanded();
+      });
       if (entry.subagent) {
         const sub = document.createElement("span");
         sub.className = "history-subagent";
@@ -207,9 +236,8 @@
       }
       content.appendChild(primary);
 
-      // Show the mechanical summary too, but only when it adds info beyond
-      // the narration (i.e. there was a narration line above it).
-      if (entry.narration) {
+      // For tool actions with narration, show the rule-based summary beneath.
+      if (entry.kind !== "prompt" && entry.narration) {
         const detail = document.createElement("span");
         detail.className = "history-detail";
         detail.textContent = entry.summary;

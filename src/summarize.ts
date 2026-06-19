@@ -51,6 +51,64 @@ export function narrationFromText(text: unknown): string {
   return cleaned.length > MAX ? cleaned.slice(0, MAX) : cleaned;
 }
 
+/** Classification of a user-role transcript message. */
+export interface UserMessage {
+  /** "prompt" = real typed input; "notification" = system/background event. */
+  kind: "prompt" | "notification";
+  text: string;
+}
+
+/**
+ * Classify a user message's `content` (a string or array of blocks). Returns
+ * null for content that should be skipped entirely (tool results, slash-command
+ * wrappers, interrupt markers). Background task-completion notifications are
+ * returned as kind "notification" so the UI can tag them distinctly.
+ */
+export function classifyUserMessage(content: unknown): UserMessage | null {
+  let text = "";
+  if (typeof content === "string") {
+    text = content;
+  } else if (Array.isArray(content)) {
+    // Ignore tool_result blocks; join any text blocks.
+    if (
+      content.some((b) => b && (b as { type?: string }).type === "tool_result")
+    ) {
+      return null;
+    }
+    text = content
+      .filter((b) => b && (b as { type?: string }).type === "text")
+      .map((b) => (b as { text?: string }).text ?? "")
+      .join(" ");
+  } else {
+    return null;
+  }
+  text = text.trim();
+  if (!text) {
+    return null;
+  }
+
+  // Background task / system notifications: keep, but tag as "notification".
+  if (/^<task-notification>/.test(text) || /<task-id>/.test(text)) {
+    return { kind: "notification", text };
+  }
+
+  // Drop slash-command / local-command wrappers and interrupt markers.
+  if (
+    /^<(command-name|command-message|command-args|local-command-caveat|local-command-stdout)/.test(
+      text
+    ) ||
+    /^\[Request interrupted/.test(text)
+  ) {
+    return null;
+  }
+  return { kind: "prompt", text };
+}
+
+/** Collapse whitespace to a single line (no truncation). */
+export function clampInline(s: string): string {
+  return s.replace(/\s+/g, " ").trim();
+}
+
 /**
  * Build a short summary for a tool invocation.
  * `name` is the tool name; `input` is its argument object.

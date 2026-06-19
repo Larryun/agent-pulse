@@ -6,7 +6,13 @@ import {
   TranscriptEntry,
 } from "./types";
 import { toEpoch } from "./transcriptReader";
-import { summarizeTool, narrationFromText, actionTag } from "./summarize";
+import {
+  summarizeTool,
+  narrationFromText,
+  actionTag,
+  classifyUserMessage,
+  clampInline,
+} from "./summarize";
 
 /**
  * In-memory projection of session state, reduced from transcript entries
@@ -39,6 +45,7 @@ export class SessionStore extends EventEmitter {
       return;
     }
     const session = this.ensureSession(sessionId, entry);
+    session.entryCount += 1;
     const ts = toEpoch(entry.timestamp);
     if (ts) {
       session.lastActivity = Math.max(session.lastActivity, ts);
@@ -78,7 +85,43 @@ export class SessionStore extends EventEmitter {
       case "assistant":
         this.applyAssistant(session, entry, ts);
         break;
+      case "user":
+        this.applyUser(session, entry, ts);
+        break;
     }
+  }
+
+  /**
+   * Record a user-role message as a worklog entry. Real typed prompts get the
+   * "You" tag; background task-completion notifications get a "System" tag.
+   * Tool results, meta/sidechain entries, and command wrappers are skipped.
+   */
+  private applyUser(
+    session: SessionState,
+    entry: TranscriptEntry,
+    ts: number
+  ): void {
+    if (entry.isMeta || entry.isSidechain) {
+      return;
+    }
+    const msg = classifyUserMessage(entry.message?.content);
+    if (!msg) {
+      return;
+    }
+    const summary = narrationFromText(msg.text) || clampInline(msg.text);
+    const activity: ActivityEntry = {
+      kind: "prompt",
+      ts: ts || session.lastActivity,
+      tool: "",
+      tag: msg.kind === "notification" ? "System" : "You",
+      summary,
+      fullText: msg.text,
+    };
+    // Notifications shouldn't masquerade as the latest user activity line.
+    if (msg.kind !== "notification") {
+      session.lastSummary = summary;
+    }
+    this.pushHistory(session, activity);
   }
 
   /**
@@ -116,6 +159,7 @@ export class SessionStore extends EventEmitter {
       const summary = summarizeTool(block.name, block.input);
       const pending = this.pendingNarration.get(session.id);
       const activity: ActivityEntry = {
+        kind: "tool",
         ts: ts || session.lastActivity,
         tool: block.name,
         tag: actionTag(block.name),
@@ -197,6 +241,7 @@ export class SessionStore extends EventEmitter {
         lastActivity: ts,
         status: "active",
         toolCalls: 0,
+        entryCount: 0,
         lastSummary: null,
         history: [],
       };

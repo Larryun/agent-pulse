@@ -145,19 +145,30 @@ body {
 }
 
 .history-entry {
-  display: grid;
-  grid-template-columns: 120px 46px 1fr;
-  align-items: start;
+  /* One line per row: tag, then text that fills the remaining width and
+     truncates with an ellipsis, then a compact time. The content flexes with
+     min-width:0 so it always gets the leftover space (and truncates) no matter
+     how narrow the sidebar is — clicking it expands the row to wrap full text. */
+  display: flex;
+  align-items: baseline;
   gap: var(--gap);
   font-size: 0.85em;
-  padding: 3px 0;
+  padding: 3px 6px 3px 8px;
+  /* Left color bar carries the action's color (set per data-tag below). */
+  border-left: 3px solid var(--tag-color, var(--vscode-panel-border));
 }
 .history-time {
+  order: 3;
+  flex: none;
   color: var(--vscode-descriptionForeground);
   white-space: nowrap;
   font-variant-numeric: tabular-nums;
+  opacity: 0.75;
 }
 .history-content {
+  order: 2;
+  flex: 1 1 auto;
+  min-width: 0;
   display: flex;
   flex-direction: column;
   overflow: hidden;
@@ -167,6 +178,16 @@ body {
   overflow: hidden;
   text-overflow: ellipsis;
 }
+.history-summary.expandable {
+  cursor: pointer;
+}
+.history-summary.open {
+  white-space: pre-wrap;
+  overflow: visible;
+  word-break: break-word;
+  user-select: text;
+  cursor: text;
+}
 .history-detail {
   color: var(--vscode-descriptionForeground);
   font-size: 0.92em;
@@ -175,29 +196,41 @@ body {
   text-overflow: ellipsis;
 }
 
-/* Colored action chip. Defaults to the badge palette; specific tags get
-   distinct hues via data-tag. Colors use VS Code chart tokens so they adapt
-   to the theme. */
+/* Action tag: small uppercase label at the start of the row. */
 .history-chip {
-  justify-self: start;
-  font-size: 0.82em;
-  font-weight: 600;
-  line-height: 1.4;
-  padding: 0 6px;
-  border-radius: 4px;
+  order: 1;
+  flex: none;
+  align-self: baseline;
+  min-width: 34px;
+  font-size: 0.8em;
+  font-weight: 700;
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
+  line-height: 1.5;
   white-space: nowrap;
-  background: var(--vscode-badge-background);
-  color: var(--vscode-badge-foreground);
+  /* Neutral text — the colored left bar already conveys the action color. */
+  color: var(--vscode-descriptionForeground);
 }
-.history-chip[data-tag="Ran"]    { background: var(--vscode-charts-blue, #3794ff); color: #fff; }
-.history-chip[data-tag="Edit"]   { background: var(--vscode-charts-orange, #d18616); color: #fff; }
-.history-chip[data-tag="Read"]   { background: var(--vscode-charts-green, #89d185); color: #1e1e1e; }
-.history-chip[data-tag="Search"] { background: var(--vscode-charts-purple, #b180d7); color: #fff; }
-.history-chip[data-tag="Web"]    { background: var(--vscode-charts-yellow, #cca700); color: #1e1e1e; }
-.history-chip[data-tag="Task"]   { background: var(--vscode-charts-red, #f14c4c); color: #fff; }
-.history-chip[data-tag="Skill"]  { background: #8a63d2; color: #fff; }
-.history-chip[data-tag="Plan"]   { background: var(--vscode-charts-foreground, #888); color: #fff; }
-.history-chip[data-tag="MCP"]    { background: #2aa198; color: #fff; }
+
+/* Per-tag color, applied to both the left bar and the tag text via the row's
+   --tag-color custom property. Colors use VS Code chart tokens where possible
+   so they adapt to the theme. */
+.history-entry[data-tag="Ran"]    { --tag-color: var(--vscode-charts-blue, #3794ff); }
+.history-entry[data-tag="Edit"]   { --tag-color: var(--vscode-charts-red, #f14c4c); }
+.history-entry[data-tag="Read"]   { --tag-color: var(--vscode-charts-green, #89d185); }
+.history-entry[data-tag="Search"] { --tag-color: var(--vscode-charts-purple, #b180d7); }
+.history-entry[data-tag="Web"]    { --tag-color: var(--vscode-charts-yellow, #cca700); }
+.history-entry[data-tag="Task"]   { --tag-color: var(--vscode-charts-orange, #d18616); }
+.history-entry[data-tag="Skill"]  { --tag-color: #a98be8; }
+.history-entry[data-tag="Plan"]   { --tag-color: var(--vscode-charts-foreground, #888); }
+.history-entry[data-tag="MCP"]    { --tag-color: #2aa198; }
+.history-entry[data-tag="You"]    { --tag-color: var(--vscode-textLink-foreground, #3794ff); }
+.history-entry[data-tag="System"] { --tag-color: var(--vscode-descriptionForeground, #888); }
+
+/* User prompt row: subtle distinct background. */
+.history-entry.is-prompt {
+  background: var(--vscode-textBlockQuote-background, rgba(127,127,127,0.08));
+}
 
 .history-subagent {
   font-size: 0.85em;
