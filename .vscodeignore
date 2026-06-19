@@ -5,6 +5,7 @@ node_modules/**
 **/.gitignore
 **/*.map
 .git/**
+.claude/**
 *.vsix
 docs/**
 CHANGELOG-dev.md
