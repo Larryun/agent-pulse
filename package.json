@@ -3,7 +3,7 @@
   "displayName": "Agent Pulse",
   "description": "Real-time, aggregated dashboard of your AI coding-agent sessions (Claude Code) — status, activity worklog, and history across all sessions, including Remote SSH.",
   "version": "0.1.0",
-  "publisher": "Larryun",
+  "publisher": "LarryU",
   "license": "MIT",
   "icon": "media/icon.png",
   "engines": {
