@@ -138,6 +138,7 @@
         type: "openSession",
         sessionId: session.id,
         cwd: session.cwd,
+        title: session.title,
       });
     });
     meta.appendChild(openBtn);

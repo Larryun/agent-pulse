@@ -98,6 +98,17 @@
           "type": "string",
           "default": "claude --resume ${sessionId}",
           "description": "Command run in the terminal when opening a session. Use ${sessionId} as a placeholder. Leave empty to just open a terminal in the session's directory."
+        },
+        "agentPulse.terminalName": {
+          "type": "string",
+          "default": "title",
+          "enum": ["title", "hash", "auto"],
+          "enumDescriptions": [
+            "Name the terminal after the session's AI-generated title.",
+            "Name the terminal after the short session hash.",
+            "Let Claude Code drive the terminal title live (requires ${sequence} in terminal.integrated.tabs.title, which is the VS Code default)."
+          ],
+          "description": "How to name the terminal opened for a session."
         }
       }
     }
