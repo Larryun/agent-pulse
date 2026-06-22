@@ -19,6 +19,14 @@ export class TranscriptReader extends EventEmitter {
   private readonly partials = new Map<string, string>();
   private readonly fileWatchers = new Map<string, fs.FSWatcher>();
   private readonly dirWatchers = new Map<string, fs.FSWatcher>();
+  /**
+   * Per-file promise chain. Multiple fs.watch events (both the dir watcher and
+   * the file watcher, and macOS firing several per write) can call drain() for
+   * the same file concurrently. readFromOffset() is async, so two overlapping
+   * runs would both read from the same start offset and emit the same bytes
+   * twice. Serializing per file prevents that duplication.
+   */
+  private readonly readChains = new Map<string, Promise<void>>();
   private rootWatcher: fs.FSWatcher | undefined;
   private started = false;
 
@@ -195,11 +203,19 @@ export class TranscriptReader extends EventEmitter {
     }
   }
 
-  private async drain(file: string): Promise<void> {
-    const entries = await this.readFromOffset(file);
-    for (const e of entries) {
-      this.emit("entry", e);
-    }
+  private drain(file: string): Promise<void> {
+    // Chain after any in-flight read for this file so reads never overlap.
+    const prev = this.readChains.get(file) ?? Promise.resolve();
+    const next = prev
+      .catch(() => undefined)
+      .then(async () => {
+        const entries = await this.readFromOffset(file);
+        for (const e of entries) {
+          this.emit("entry", e);
+        }
+      });
+    this.readChains.set(file, next);
+    return next;
   }
 }
 
