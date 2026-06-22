@@ -4,19 +4,38 @@
   const summaryEl = document.getElementById("summary-text");
   const sessionsEl = document.getElementById("sessions");
   const emptyEl = document.getElementById("empty");
+  const filterInput = document.getElementById("filter-input");
+  const filterClear = document.getElementById("filter-clear");
+  const filterToggle = document.getElementById("filter-toggle");
+  const scopesEl = document.getElementById("filter-scopes");
 
-  // Remember which sessions / rows the user expanded, across re-renders, plus
-  // the per-session worklog height the user dragged to.
+  // Persisted webview state: which sessions / rows are expanded, worklog
+  // heights, and the enabled filter scopes.
   const savedState = vscode.getState() || {};
   const expanded = new Set(savedState.expanded || []);
   const expandedRows = new Set(savedState.expandedRows || []);
   const historyHeights = new Map(Object.entries(savedState.historyHeights || {}));
+
+  // Latest snapshot + current filter text/scopes, so typing re-renders without
+  // waiting for a new snapshot from the extension. Scopes persist in webview
+  // state; query is transient. Scopes is a set of: title | path | worklog.
+  let lastSnapshot = null;
+  let filterQuery = "";
+  const ALL_SCOPES = ["title", "path", "worklog"];
+  // Default to all scopes only on first load (no saved value); respect a saved
+  // selection as-is, including an empty one.
+  const enabledScopes = new Set(
+    Array.isArray(savedState.filterScopes)
+      ? savedState.filterScopes
+      : ALL_SCOPES
+  );
 
   function persistExpanded() {
     vscode.setState({
       expanded: [...expanded],
       expandedRows: [...expandedRows],
       historyHeights: Object.fromEntries(historyHeights),
+      filterScopes: [...enabledScopes],
     });
   }
 
@@ -62,7 +81,39 @@
     return session.status === "active" ? "working…" : "idle";
   }
 
+  // True if a session matches the query in ANY of the enabled scopes
+  // (case-insensitive). Enabled scopes is a set of: title | path | worklog.
+  function matchesFilter(session, q) {
+    if (!q) return true;
+    if (
+      enabledScopes.has("title") &&
+      (session.title || "").toLowerCase().includes(q)
+    ) {
+      return true;
+    }
+    if (
+      enabledScopes.has("path") &&
+      (session.cwd || "").toLowerCase().includes(q)
+    ) {
+      return true;
+    }
+    if (
+      enabledScopes.has("worklog") &&
+      (session.history || []).some(
+        (h) =>
+          (h.summary || "").toLowerCase().includes(q) ||
+          (h.narration || "").toLowerCase().includes(q) ||
+          (h.fullText || "").toLowerCase().includes(q)
+      )
+    ) {
+      return true;
+    }
+    return false;
+  }
+
   function render(snapshot) {
+    if (!snapshot) return;
+    lastSnapshot = snapshot;
     const { sessions, totalActive, totalToolCalls } = snapshot;
 
     if (!sessions.length) {
@@ -71,13 +122,28 @@
       emptyEl.classList.add("show");
       return;
     }
+
+    const q = filterQuery.trim().toLowerCase();
+    const shown = q ? sessions.filter((s) => matchesFilter(s, q)) : sessions;
+
     emptyEl.classList.remove("show");
-    summaryEl.textContent = `${sessions.length} session${
-      sessions.length > 1 ? "s" : ""
-    } · ${totalActive} active · ${totalToolCalls} tool calls`;
+    if (q) {
+      summaryEl.textContent = `${shown.length} of ${sessions.length} sessions match “${filterQuery.trim()}”`;
+    } else {
+      summaryEl.textContent = `${sessions.length} session${
+        sessions.length > 1 ? "s" : ""
+      } · ${totalActive} active · ${totalToolCalls} tool calls`;
+    }
 
     sessionsEl.innerHTML = "";
-    for (const session of sessions) {
+    if (!shown.length) {
+      const none = document.createElement("div");
+      none.className = "no-match";
+      none.textContent = "No sessions match your filter.";
+      sessionsEl.appendChild(none);
+      return;
+    }
+    for (const session of shown) {
       sessionsEl.appendChild(renderSession(session, snapshot.generatedAt));
     }
   }
@@ -176,6 +242,11 @@
   }
 
   function renderHistory(session) {
+    // Wrapper holds the scrollable worklog plus a full-width drag bar beneath
+    // it. Toggled visible via `.session.expanded .history-wrap`.
+    const wrap = document.createElement("div");
+    wrap.className = "history-wrap";
+
     const box = document.createElement("div");
     box.className = "history";
     // Restore a previously dragged height for this session, if any.
@@ -183,20 +254,31 @@
     if (savedH) {
       box.style.height = savedH + "px";
     }
-    // Persist the height whenever the user drags the resize handle.
-    if (typeof ResizeObserver !== "undefined") {
-      const ro = new ResizeObserver((entries) => {
-        for (const e of entries) {
-          const h = Math.round(e.contentRect.height);
-          if (h > 0) {
-            historyHeights.set(session.id, h);
-          }
-        }
+
+    // Full-width drag handle: grab anywhere along the bottom line to resize.
+    const resizer = document.createElement("div");
+    resizer.className = "history-resizer";
+    resizer.title = "Drag to resize";
+    resizer.addEventListener("mousedown", (ev) => {
+      ev.preventDefault();
+      const startY = ev.clientY;
+      const startH = box.getBoundingClientRect().height;
+      document.body.classList.add("row-resizing");
+      const onMove = (m) => {
+        const h = Math.max(80, Math.min(window.innerHeight * 0.85, startH + (m.clientY - startY)));
+        box.style.height = h + "px";
+      };
+      const onUp = () => {
+        document.removeEventListener("mousemove", onMove);
+        document.removeEventListener("mouseup", onUp);
+        document.body.classList.remove("row-resizing");
+        historyHeights.set(session.id, Math.round(box.getBoundingClientRect().height));
         persistExpanded();
-      });
-      // Observe after the first layout so we don't record the initial size.
-      requestAnimationFrame(() => ro.observe(box));
-    }
+      };
+      document.addEventListener("mousemove", onMove);
+      document.addEventListener("mouseup", onUp);
+    });
+
     // Most recent first.
     const entries = [...session.history].reverse();
     if (!entries.length) {
@@ -204,7 +286,9 @@
       none.className = "history-detail";
       none.textContent = "No activity recorded.";
       box.appendChild(none);
-      return box;
+      wrap.appendChild(box);
+      wrap.appendChild(resizer);
+      return wrap;
     }
     for (let idx = 0; idx < entries.length; idx++) {
       const entry = entries[idx];
@@ -272,8 +356,59 @@
       row.appendChild(content);
       box.appendChild(row);
     }
-    return box;
+    wrap.appendChild(box);
+    wrap.appendChild(resizer);
+    return wrap;
   }
+
+  // --- filter input + scope wiring ---
+  // Reflect persisted scope state onto the checkboxes on load.
+  function syncScopeUI() {
+    if (!scopesEl) return;
+    for (const cb of scopesEl.querySelectorAll("input[type=checkbox]")) {
+      cb.checked = enabledScopes.has(cb.dataset.scope);
+    }
+  }
+  if (filterInput) {
+    filterInput.value = filterQuery;
+    filterInput.addEventListener("input", () => {
+      filterQuery = filterInput.value;
+      render(lastSnapshot);
+    });
+    filterInput.addEventListener("keydown", (e) => {
+      if (e.key === "Escape") {
+        filterQuery = "";
+        filterInput.value = "";
+        render(lastSnapshot);
+      }
+    });
+  }
+  if (filterClear) {
+    filterClear.addEventListener("click", () => {
+      filterQuery = "";
+      if (filterInput) filterInput.value = "";
+      render(lastSnapshot);
+      if (filterInput) filterInput.focus();
+    });
+  }
+  if (filterToggle && scopesEl) {
+    filterToggle.addEventListener("click", () => {
+      const collapsed = scopesEl.classList.toggle("collapsed");
+      filterToggle.classList.toggle("active", !collapsed);
+    });
+  }
+  if (scopesEl) {
+    scopesEl.addEventListener("change", (e) => {
+      const cb = e.target.closest("input[type=checkbox]");
+      if (!cb) return;
+      const scope = cb.dataset.scope;
+      if (cb.checked) enabledScopes.add(scope);
+      else enabledScopes.delete(scope);
+      persistExpanded();
+      render(lastSnapshot);
+    });
+  }
+  syncScopeUI();
 
   window.addEventListener("message", (e) => {
     const msg = e.data;

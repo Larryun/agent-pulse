@@ -140,6 +140,19 @@ export class DashboardWebviewProvider implements vscode.WebviewViewProvider {
   <header id="summary" class="summary">
     <span id="summary-text">No sessions yet.</span>
   </header>
+  <div class="filter">
+    <div class="filter-row">
+      <input id="filter-input" type="text" placeholder="Filter sessions…" />
+      <button id="filter-toggle" title="Search options" aria-label="Search options">⚙</button>
+      <button id="filter-clear" title="Clear filter" aria-label="Clear filter">✕</button>
+    </div>
+    <div class="filter-scopes collapsed" id="filter-scopes">
+      <span class="filter-scopes-label">Search in:</span>
+      <label><input type="checkbox" data-scope="title" checked /> Title</label>
+      <label><input type="checkbox" data-scope="path" checked /> Path</label>
+      <label><input type="checkbox" data-scope="worklog" checked /> Worklog</label>
+    </div>
+  </div>
   <div id="sessions" class="sessions"></div>
   <div id="empty" class="empty">
     <p>No agent sessions found.</p>
