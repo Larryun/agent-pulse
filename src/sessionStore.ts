@@ -88,6 +88,13 @@ export class SessionStore extends EventEmitter {
       case "user":
         this.applyUser(session, entry, ts);
         break;
+      case "system":
+        // A compaction replaces the conversation with a summary, so skills
+        // loaded before it are no longer reliably in the live context.
+        if (entry.subtype === "compact_boundary") {
+          session.loadedSkills = [];
+        }
+        break;
     }
   }
 
@@ -134,6 +141,20 @@ export class SessionStore extends EventEmitter {
     entry: TranscriptEntry,
     ts: number
   ): void {
+    // Token usage: accumulate output tokens; context is the latest turn's
+    // total input (fresh input + cache read + cache creation).
+    const usage = entry.message?.usage;
+    if (usage) {
+      session.outputTokens += usage.output_tokens || 0;
+      const ctx =
+        (usage.input_tokens || 0) +
+        (usage.cache_read_input_tokens || 0) +
+        (usage.cache_creation_input_tokens || 0);
+      if (ctx > 0) {
+        session.contextTokens = ctx;
+      }
+    }
+
     const content = entry.message?.content;
     if (!Array.isArray(content)) {
       return;
@@ -155,6 +176,13 @@ export class SessionStore extends EventEmitter {
       }
       if (block?.type !== "tool_use" || typeof block.name !== "string") {
         continue;
+      }
+      // Track distinct skills loaded into context (so they need not reload).
+      if (block.name === "Skill") {
+        const skill = (block.input as { skill?: unknown } | undefined)?.skill;
+        if (typeof skill === "string" && skill && !session.loadedSkills.includes(skill)) {
+          session.loadedSkills.push(skill);
+        }
       }
       const summary = summarizeTool(block.name, block.input);
       const pending = this.pendingNarration.get(session.id);
@@ -242,6 +270,9 @@ export class SessionStore extends EventEmitter {
         status: "active",
         toolCalls: 0,
         entryCount: 0,
+        outputTokens: 0,
+        contextTokens: 0,
+        loadedSkills: [],
         lastSummary: null,
         history: [],
       };

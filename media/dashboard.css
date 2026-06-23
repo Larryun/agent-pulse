@@ -168,6 +168,13 @@ body {
 .session-branch::before {
   content: "⎇ ";
 }
+.session-tokens {
+  flex: none;
+  margin-left: auto;
+  padding-left: 8px;
+  opacity: 0.85;
+  font-variant-numeric: tabular-nums;
+}
 
 .session-activity {
   color: var(--vscode-foreground);
@@ -213,6 +220,28 @@ body {
 }
 .session.expanded .history-wrap {
   display: block;
+}
+
+/* Skills loaded into the session's context (only shown when expanded). */
+.session-skills {
+  display: none;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px 6px;
+  padding: 4px 12px 6px 12px;
+  font-size: 0.82em;
+}
+.session.expanded .session-skills {
+  display: flex;
+}
+.session-skills-label {
+  color: var(--vscode-descriptionForeground);
+}
+.skill-chip {
+  padding: 0 6px;
+  border-radius: 8px;
+  background: var(--vscode-badge-background);
+  color: var(--vscode-badge-foreground);
 }
 .history {
   padding: 4px 6px 10px 10px;

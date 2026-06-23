@@ -9,6 +9,8 @@
 /** A single transcript line. Only the fields we use are typed; the rest pass through. */
 export interface TranscriptEntry {
   type?: string;
+  /** Discriminator for system entries, e.g. "compact_boundary". */
+  subtype?: string;
   sessionId?: string;
   cwd?: string;
   gitBranch?: string;
@@ -33,6 +35,13 @@ export interface TranscriptEntry {
           text?: string;
           input?: Record<string, unknown>;
         }>;
+    /** Token usage, present on assistant messages. */
+    usage?: {
+      input_tokens?: number;
+      output_tokens?: number;
+      cache_read_input_tokens?: number;
+      cache_creation_input_tokens?: number;
+    };
   };
   /** True for meta entries (command wrappers, system-injected). */
   isMeta?: boolean;
@@ -82,6 +91,15 @@ export interface SessionState {
   toolCalls: number;
   /** Total transcript entries seen for this session. */
   entryCount: number;
+  /** Cumulative output tokens generated across the session. */
+  outputTokens: number;
+  /** Latest-turn context size (input + cache read + cache creation tokens). */
+  contextTokens: number;
+  /**
+   * Distinct skills invoked in this session — i.e. whose content has been read
+   * into the context window and need not be loaded again.
+   */
+  loadedSkills: string[];
   /** Summary of the most recent action (for the collapsed row). */
   lastSummary: string | null;
   /** Chronological (oldest-first) worklog, capped to historyLimit. */

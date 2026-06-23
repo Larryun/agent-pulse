@@ -58,6 +58,14 @@
     return `${date} ${time}`;
   }
 
+  // Compact token count: 1234 -> "1.2k", 1500000 -> "1.5M".
+  function fmtTokens(n) {
+    if (!n) return "0";
+    if (n < 1000) return String(n);
+    if (n < 1_000_000) return (n / 1000).toFixed(n < 10000 ? 1 : 0) + "k";
+    return (n / 1_000_000).toFixed(1) + "M";
+  }
+
   // Relative "time ago" for the last-active timestamp.
   function fmtAgo(tsSeconds, nowSeconds) {
     if (!tsSeconds) return "";
@@ -187,6 +195,13 @@
       br.textContent = session.gitBranch;
       sub.appendChild(br);
     }
+    if (session.outputTokens || session.contextTokens) {
+      const tok = document.createElement("span");
+      tok.className = "session-tokens";
+      tok.textContent = `↑${fmtTokens(session.outputTokens)} · context ${fmtTokens(session.contextTokens)}`;
+      tok.title = `${session.outputTokens.toLocaleString()} output tokens generated · ${session.contextTokens.toLocaleString()} tokens in context (latest turn)`;
+      sub.appendChild(tok);
+    }
 
     // Current action summary.
     const activity = document.createElement("div");
@@ -237,6 +252,24 @@
     });
 
     wrap.appendChild(header);
+    // Skills loaded into this session's context (won't need reloading).
+    if (session.loadedSkills && session.loadedSkills.length) {
+      const skills = document.createElement("div");
+      skills.className = "session-skills";
+      const label = document.createElement("span");
+      label.className = "session-skills-label";
+      label.textContent = "Skills in context:";
+      skills.appendChild(label);
+      for (const s of session.loadedSkills) {
+        const chip = document.createElement("span");
+        chip.className = "skill-chip";
+        // Show the readable tail of namespaced skills (plugin:skill).
+        chip.textContent = s.includes(":") ? s.slice(s.lastIndexOf(":") + 1) : s;
+        chip.title = s;
+        skills.appendChild(chip);
+      }
+      wrap.appendChild(skills);
+    }
     wrap.appendChild(renderHistory(session));
     return wrap;
   }
